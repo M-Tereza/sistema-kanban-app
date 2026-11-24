@@ -1,0 +1,144 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+
+import "dayjs/locale/pt-br";
+
+import Card from "../components/card";
+import FormGroup from "../components/form-group";
+
+import { mensagemSucesso, mensagemErro } from "../components/toastr";
+
+import "../custom.css";
+
+import axios from "axios";
+import { API_URLS } from "../config/axios";
+import { toTitleCase } from "../utils/formatadores";
+
+const baseURL = `${API_URLS}/editoras`;
+
+function CadastroEditora() {
+  const { idParam } = useParams();
+  const navigate = useNavigate();
+
+  const [id, setId] = useState("");
+  const [nome, setNome] = useState("");
+
+  const [dados, setDados] = React.useState([]);
+
+  function inicializar() {
+    if (idParam == null) {
+      setId("");
+      setNome("");
+    } else {
+      setId(dados.id);
+      setNome(toTitleCase(dados.nome));
+    }
+  }
+
+  const voltar = () => {
+    navigate(`/listagem-editoras`);
+  };
+
+  async function salvar() {
+    let data = { id, nome };
+    data = JSON.stringify(data);
+
+    if (idParam == null) {
+      await axios
+        .post(baseURL, data, {
+          headers: { "Content-Type": "application/json" },
+        })
+        .then((response) => {
+          mensagemSucesso(`Editora ${toTitleCase(nome)} cadastrada com sucesso!`);
+          navigate(`/listagem-editoras`);
+        })
+        .catch((error) => {
+          mensagemErro(error.response.data);
+        });
+    } else {
+      await axios
+        .put(`${baseURL}/${idParam}`, data, {
+          headers: { "Content-Type": "application/json" },
+        })
+        .then((response) => {
+          mensagemSucesso(`Editora ${toTitleCase(nome)} alterada com sucesso!`);
+          navigate(`/listagem-editoras`);
+        })
+        .catch((error) => {
+          mensagemErro(error.response.data);
+        });
+    }
+  }
+
+  async function buscar() {
+    await axios
+      .get(`${baseURL}/${idParam}`)
+      .then((response) => {
+        setDados(response.data);
+      })
+      .catch(() => {
+        mensagemErro("Erro ao buscar editora.");
+      });
+
+    setId(dados.id);
+    setNome(toTitleCase(dados.nome));
+  }
+
+  useEffect(() => {
+    if (idParam) {
+      buscar();
+    } // eslint-disable-next-line
+  }, [id]);
+
+  if (!dados) return null;
+
+  return (
+    <div className="container">
+      <Card title="Cadastro de Editora">
+        <div className="row">
+          <div className="col-lg-12">
+            <div className="bs-component">
+              <FormGroup label="Nome da Editora: *" htmlFor="inputNome">
+                <input
+                  type="text"
+                  maxLength="30"
+                  id="inputNome"
+                  value={nome}
+                  className="form-control"
+                  name="nome"
+                  onChange={(e) => setNome(e.target.value)}
+                />
+              </FormGroup>
+
+              <Stack spacing={1} padding={1} direction="row">
+                <button
+                  onClick={salvar}
+                  type="button"
+                  className="btn btn-success"
+                >
+                  Salvar
+                </button>
+
+                <button
+                  onClick={voltar}
+                  type="button"
+                  className="btn btn-danger"
+                >
+                  Cancelar
+                </button>
+              </Stack>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export default CadastroEditora;

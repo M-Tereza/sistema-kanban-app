@@ -1,0 +1,43 @@
+/* Reset básico */
+* {
+  box-sizing: border-box;
+}
+
+/* Corpo da aplicação */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  background-color: #F1F5F9; /* fundo claro institucional */
+  color: #1E293B;
+}
+
+/* Root do React */
+#root {
+  min-height: 100vh;
+  display: flex;
+}
+
+/* Links padrão */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Scrollbar (opcional, mas deixa moderno) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94A3B8;
+}

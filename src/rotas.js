@@ -1,115 +1,62 @@
 import React from 'react';
+import { Route, Routes, Navigate } from 'react-router-dom';
 
-import { Route, Routes } from 'react-router-dom';
+import ListagemCargos from './views/listagem-cargos';
+import CadastroCargo from './views/cadastro-cargo';
 
-import ListagemClientes from './views/listagem-clientes';
-import ListagemValorDiarioMultas from './views/listagem-valorDiarioMultas';
-import ListagemDuracaoPadraoEmprestimos from './views/listagem-duracaoPadraoEmprestimos';
-import ListagemDuracaoPadraoReservas from './views/listagem-duracaoPadraoReservas';
-import ListagemObras from './views/listagem-obras';
-import ListagemGeneros from './views/listagem-generos';
-import ListagemIdiomas from './views/listagem-idiomas';
-import ListagemSecoes from './views/listagem-secoes';
-import ListagemAutores from './views/listagem-autores';
-import ListagemEditoras from './views/listagem-editoras';
-import ListagemEmprestimos from './views/listagem-emprestimos';
+import ListagemAreasProjeto from './views/listagem-areas-projeto';
+import CadastroAreaProjeto from './views/cadastro-area-projeto';
 
-import CadastroCliente from './views/cadastro-cliente';
-import CadastroObra from './views/cadastro-obra';
-import CadastroExemplar from './views/cadastro-exemplar';
-import CadastroValorDiarioMulta from './views/cadastro-valorDiarioMulta';
-import CadastroDuracaoPadraoEmprestimo from './views/cadastro-duracaoPadraoEmprestimo';
-import CadastroDuracaoPadraoReserva from './views/cadastro-duracaoPadraoReserva';
-import CadastroGenero from './views/cadastro-genero';
-import CadastroSecao from './views/cadastro-secao';
-import CadastroIdioma from './views/cadastro-idioma';
-import CadastroAutor from './views/cadastro-autor';
-import CadastroEditora from './views/cadastro-editora';
+import ListagemPrioridades from './views/listagem-prioridades';
+import CadastroPrioridade from './views/cadastro-prioridade';
 
-import Relatorios from './views/relatorios';
+import ListagemFuncionarios from './views/listagem-funcionarios';
+import CadastroFuncionario from './views/cadastro-funcionario';
+import PerfilFuncionario from './views/perfil-funcionario';
 
-import PerfilCliente from './views/perfil-cliente';
-import PerfilObra from './views/perfil-obra';
-import PerfilExemplar from './views/perfil-exemplar';
+import ListagemProjetos from './views/listagem-projetos';
+import CadastroProjeto from './views/cadastro-projeto';
+import PerfilProjeto from './views/perfil-projeto';
 
-import SelecionarExemplar from './views/selecionar-exemplar';
-import SelecionarObra from './views/selecionar-obra';
-import ConfirmarEmprestimo from './views/confirmar-emprestimo';
-import ConfirmarReserva from './views/confirmar-reserva';
+import ListagemFuncionariosProjeto from './views/listagem-funcionarios-projeto';
+import CadastroFuncionarioProjeto from './views/cadastro-funcionario-projeto';
 
-import EdicaoCliente from './views/edicao-cliente';
-import EdicaoExemplar from './views/edicao-exemplar';
+import ListagemEtiquetas from './views/listagem-etiquetas';
+import CadastroEtiqueta from './views/cadastro-etiqueta';
 
-import Login from './views/login';
+import CadastroTarefa from './views/cadastro-tarefa';
+import PerfilTarefa from './views/perfil-tarefa';
 
 function Rotas() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/listagem-projetos" replace />} />
 
-      <Route path="/login" element={<Login />} />
+      <Route path="/listagem-cargos" element={<ListagemCargos />} />
+      <Route path="/cadastro-cargo/:idParam?" element={<CadastroCargo />} />
 
-      <Route path="/listagem-obras" element={<ListagemObras />} />
+      <Route path="/listagem-areas-projeto" element={<ListagemAreasProjeto />} />
+      <Route path="/cadastro-area-projeto/:idParam?" element={<CadastroAreaProjeto />} />
 
-      <Route path="/listagem-clientes" element={<ListagemClientes />} />
+      <Route path="/listagem-prioridades" element={<ListagemPrioridades />} />
+      <Route path="/cadastro-prioridade/:idParam?" element={<CadastroPrioridade />} />
 
-      <Route path="/listagem-emprestimos" element={<ListagemEmprestimos />} />
+      <Route path="/listagem-funcionarios" element={<ListagemFuncionarios />} />
+      <Route path="/cadastro-funcionario/:idParam?" element={<CadastroFuncionario />} />
+      <Route path="/perfil-funcionario/:idParam" element={<PerfilFuncionario />} />
 
-      <Route path="/listagem-generos" element={<ListagemGeneros />} />
+      <Route path="/listagem-projetos" element={<ListagemProjetos />} />
+      <Route path="/cadastro-projeto/:idParam?" element={<CadastroProjeto />} />
+      <Route path="/perfil-projeto/:idParam" element={<PerfilProjeto />} />
 
-      <Route path="/listagem-idiomas" element={<ListagemIdiomas />} />
+      <Route path="/listagem-funcionarios-projeto" element={<ListagemFuncionariosProjeto />} />
+      <Route path="/cadastro-funcionario-projeto/:idParam?" element={<CadastroFuncionarioProjeto />} />
 
-      <Route path="/listagem-secoes" element={<ListagemSecoes />} />
+      <Route path="/listagem-etiquetas" element={<ListagemEtiquetas />} />
+      <Route path="/cadastro-etiqueta/:idParam?" element={<CadastroEtiqueta />} />
 
-      <Route path="/listagem-autores" element={<ListagemAutores />} />
-
-      <Route path="/listagem-editoras" element={<ListagemEditoras />} />
-
-      <Route path="/listagem-valorDiarioMultas" element={<ListagemValorDiarioMultas />} />
-
-      <Route path="/listagem-duracaoPadraoEmprestimos" element={<ListagemDuracaoPadraoEmprestimos />} />
-
-      <Route path="/listagem-duracaoPadraoReservas" element={<ListagemDuracaoPadraoReservas />} />
-
-      <Route path="/cadastro-cliente/:idParam?" element={<CadastroCliente />} />
-
-      <Route path="/cadastro-obra/:idParam?" element={<CadastroObra />} />
-
-      <Route path="/cadastro-exemplar/:idParam?" element={<CadastroExemplar />} />
-
-      <Route path="/cadastro-valorDiarioMulta/:idParam?" element={<CadastroValorDiarioMulta />} />
-
-      <Route path="/cadastro-duracaoPadraoEmprestimo/:idParam?" element={<CadastroDuracaoPadraoEmprestimo />} />
-
-      <Route path="/cadastro-duracaoPadraoReserva/:idParam?" element={<CadastroDuracaoPadraoReserva />} />
-
-      <Route path="/cadastro-genero/:idParam?" element={<CadastroGenero />} />
-
-      <Route path="/cadastro-secao/:idParam?" element={<CadastroSecao />} />
-
-      <Route path="/cadastro-autor/:idParam?" element={<CadastroAutor />} />
-
-      <Route path="/cadastro-editora/:idParam?" element={<CadastroEditora />} />
-
-      <Route path="/relatorios" element={<Relatorios />} />
-
-      <Route path="/perfil-cliente/:id" element={<PerfilCliente />} />
-
-      <Route path="/perfil-obra/:id" element={<PerfilObra />} />
-
-      <Route path="/perfil-exemplar/:id" element={<PerfilExemplar />} />
-
-      <Route path="/selecionar-exemplar/:idCliente/:idObra" element={<SelecionarExemplar />} />
-
-      <Route path="/selecionar-obra/:idCliente" element={<SelecionarObra />} />
-
-      <Route path="/confirmar-emprestimo/:idCliente/:idObra/:idExemplar" element={<ConfirmarEmprestimo />} />
-
-      <Route path="/confirmar-reserva/:idCliente/:idObra" element={<ConfirmarReserva />} />
-
-      <Route path="/edicao-cliente/:id" element={<EdicaoCliente />} />
-
-      <Route path="/edicao-exemplar/:id" element={<EdicaoExemplar />} />
-
+      <Route path="/cadastro-tarefa/:idParam?" element={<CadastroTarefa />} />
+      <Route path="/perfil-tarefa/:idParam" element={<PerfilTarefa />} />
     </Routes>
   );
 }

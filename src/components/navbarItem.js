@@ -1,28 +1,35 @@
 import React from 'react';
-import "bootswatch/dist/flatly/bootstrap.css";
+import { Link } from 'react-router-dom';
 
-function NavbarItem({ render, label, href, onClick, dropdown, items = [] }) {
+function NavbarItem({
+  render = true,
+  label,
+  href,
+  onClick,
+  dropdown,
+  items = [],
+  isDropdownItem = false,
+}) {
   if (!render) return null;
 
   if (dropdown) {
     return (
       <li className="nav-item dropdown">
-        <a
-          className="nav-link dropdown-toggle"
-          href="#"
-          role="button"
+        <button
+          type="button"
+          className="nav-link dropdown-toggle btn btn-link text-decoration-none"
           data-bs-toggle="dropdown"
           aria-expanded="false"
         >
           {label}
-        </a>
+        </button>
 
         <ul className="dropdown-menu">
           {items.map((item) => (
             <li key={item.href}>
-              <a className="dropdown-item" href={item.href}>
+              <Link className="dropdown-item" to={item.href}>
                 {item.label}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -30,11 +37,21 @@ function NavbarItem({ render, label, href, onClick, dropdown, items = [] }) {
     );
   }
 
+  if (isDropdownItem) {
+    return (
+      <li>
+        <Link onClick={onClick} className="dropdown-item" to={href}>
+          {label}
+        </Link>
+      </li>
+    );
+  }
+
   return (
     <li className="nav-item">
-      <a onClick={onClick} className="nav-link" href={href}>
+      <Link onClick={onClick} className="nav-link" to={href}>
         {label}
-      </a>
+      </Link>
     </li>
   );
 }

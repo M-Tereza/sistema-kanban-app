@@ -6,30 +6,24 @@ import Rotas from './rotas';
 
 const theme = createTheme({
   palette: {
-    primary: { main: '#4caf50' },   // verde
-    secondary: { main: '#ff9800' }, // laranja
+    primary: { main: '#4caf50' },
+    secondary: { main: '#ff9800' },
   },
   typography: {
     fontFamily: 'Roboto, Arial',
   },
 });
 
-class App extends React.Component {
-  render() {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <div className='container'>
-          <Navbar />
-          <Rotas />
-        </div>
-      </ThemeProvider>
-    );
-  }
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Navbar />
+      <div className="container" style={{ marginTop: '80px' }}>
+        <Rotas />
+      </div>
+    </ThemeProvider>
+  );
 }
-
-
-
-
 
 export default App;

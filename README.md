@@ -6,25 +6,25 @@ Aplicação web *Single Page Application* (SPA) desenvolvida em **React** para o
 
 ## Visão Geral e Funcionalidades
 
-* **Quadro Kanban Interativo (`/kanban`)**
-  * Seleção dinâmica de projetos e exibição das fases ordenadas em colunas.
-  * Reordenação horizontal das fases e movimentação fluida de tarefas entre etapas.
-  * Visualização detalhada de cards com prioridade, prazo, responsáveis, etiquetas e histórico de anotações.
-  * Filtragem combinada em tempo real (com *debounce*) por termo de busca (título, descrição ou etiqueta) e por membro responsável.
+* **Quadro Kanban Interativo (`/perfil-projeto/:idParam`)**
+  * Exibição das fases do projeto ordenadas em colunas lado a lado.
+  * Criação, edição, reordenação horizontal das fases e exclusão segura (com confirmação simples para fases vazias e alerta destacado quando existem tarefas vinculadas).
+  * Movimentação de tarefas entre fases e acesso direto aos detalhes de cada tarefa.
+  * Filtragem combinada em tempo real (com *debounce*) por termo de busca (título ou descrição), etiqueta, prioridade e membro responsável.
 
-* **Gestão de Projetos e Fluxos**
-  * **Projetos (`/listagem-projetos`, `/cadastro-projetos/:idParam?`)**: CRUD completo com vinculação opcional a áreas de negócio e atalho direto para o respectivo quadro Kanban.
-  * **Fases (`/listagem-fases`, `/cadastro-fases/:idParam?`)**: Gerenciamento das etapas do fluxo, controle de fase final e exclusão segura mediante confirmação quando existem tarefas alocadas.
+* **Gestão de Projetos e Equipe**
+  * **Projetos (`/listagem-projetos`, `/cadastro-projeto/:idParam?`)**: CRUD completo com filtro por área de projeto, busca textual e atalho direto para o quadro Kanban.
+  * **Participações e Responsáveis (`/listagem-funcionarios-projeto`, `/cadastro-funcionario-projeto/:idParam?`)**: Vinculação de colaboradores ao projeto e definição de responsáveis, com retorno direto ao quadro Kanban.
+  * **Funcionários (`/listagem-funcionarios`, `/cadastro-funcionario/:idParam?`, `/perfil-funcionario/:idParam`)**: Cadastro e perfil detalhado de colaboradores, incluindo busca com *debounce*, filtros por cargo e projeto, e visualização dos projetos vinculados.
 
 * **Gestão de Tarefas e Colaboração**
-  * **Tarefas (`/listagem-tarefas`, `/cadastro-tarefas/:idParam?`)**: Criação e manutenção de demandas com definição de prazos, prioridades, etiquetas, responsáveis e anotações.
-  * **Equipe (`/listagem-funcionarios`, `/listagem-funcionarios-projeto`)**: Cadastro de colaboradores, atribuição de cargos e vinculação de membros e responsáveis aos projetos.
+  * **Tarefas (`/cadastro-tarefa/:idParam?`, `/perfil-tarefa/:idParam`)**: Criação e edição contextualizadas ao projeto, definição de fase, prioridade e data limite, atribuição de responsáveis, vinculação de etiquetas e gerenciamento de anotações.
+  * **Etiquetas por Projeto (`/listagem-etiquetas`, `/cadastro-etiqueta/:idParam?`)**: Cadastro e listagem de etiquetas escopadas ao projeto, com retorno direto ao quadro Kanban.
 
 * **Cadastros Auxiliares**
-  * **Cargos** (`/listagem-cargos`, `/cadastro-cargos/:idParam?`)
-  * **Áreas de Projeto** (`/listagem-areas-projeto`, `/cadastro-areas-projeto/:idParam?`)
-  * **Prioridades** (`/listagem-prioridades`, `/cadastro-prioridades/:idParam?`)
-  * **Etiquetas por Projeto** (`/listagem-etiquetas`, `/cadastro-etiquetas/:idParam?`)
+  * **Cargos** (`/listagem-cargos`, `/cadastro-cargo/:idParam?`)
+  * **Áreas de Projeto** (`/listagem-areas-projeto`, `/cadastro-area-projeto/:idParam?`)
+  * **Prioridades** (`/listagem-prioridades`, `/cadastro-prioridade/:idParam?`)
 
 ---
 
@@ -51,13 +51,13 @@ src/
 ├── components/          # Componentes de UI reutilizáveis (Navbar, Card, FormGroup, Toastr)
 ├── config/
 │   └── axios.js         # Definição centralizada da BASE_URL da API REST
-├── hooks/
-│   └── useDebounce.js   # Hook customizado para otimização de buscas em tempo real
 ├── utils/
-│   ├── datas.js         # Utilitários de formatação para LocalDate e Instant (ISO-8601)
-│   └── kanban.js        # Regras auxiliares de ordenação de fases e filtragem de tarefas
-├── views/               # Camada de páginas (Quadro Kanban, Listagens e Formulários CRUD)
+│   ├── formatters.js    # Utilitários de formatação para LocalDate e Instant (ISO-8601)
+│   ├── kanban.js        # Regras auxiliares de ordenação de fases e filtragem de tarefas
+│   └── useDebounce.js   # Hook customizado para otimização de buscas em tempo real
+├── views/               # Camada de páginas (Listagens, Formulários CRUD e Telas de Perfil)
 ├── App.js               # Layout raiz da aplicação (Navbar + Roteador)
+├── custom.css           # Ajustes de estilo complementares da interface
 ├── index.js             # Ponto de entrada e renderização no DOM
 └── rotas.js             # Configuração centralizada de rotas e parâmetros
 ```

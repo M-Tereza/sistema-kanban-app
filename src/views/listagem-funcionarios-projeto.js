@@ -131,7 +131,6 @@ function ListagemFuncionariosProjeto() {
                     <Stack spacing={0.5} direction="row">
                       <IconButton
                         size="small"
-                        color="warning"
                         aria-label="editar"
                         onClick={() =>
                           navigate(
@@ -145,7 +144,6 @@ function ListagemFuncionariosProjeto() {
                       </IconButton>
                       <IconButton
                         size="small"
-                        color="error"
                         aria-label="excluir"
                         onClick={() => setVinculoSelecionado(vinculo)}
                       >

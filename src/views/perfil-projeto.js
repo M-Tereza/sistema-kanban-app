@@ -48,7 +48,10 @@ function PerfilProjeto() {
   const [nomeFaseEditando, setNomeFaseEditando] = useState('');
   const [ehFaseFinalEditando, setEhFaseFinalEditando] = useState(false);
 
+  const [fasePendenteExclusaoSimples, setFasePendenteExclusaoSimples] =
+    useState(null);
   const [fasePendenteExclusao, setFasePendenteExclusao] = useState(null);
+  const [tarefaPendenteExclusao, setTarefaPendenteExclusao] = useState(null);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -196,23 +199,35 @@ function PerfilProjeto() {
     }
   }
 
-  async function solicitarExclusaoFase(fase) {
+  function solicitarExclusaoFase(fase) {
+    const temTarefasNaFase = tarefas.some(
+      (t) => Number(t.idFase) === Number(fase.id)
+    );
+    if (temTarefasNaFase) {
+      setFasePendenteExclusao(fase);
+    } else {
+      setFasePendenteExclusaoSimples(fase);
+    }
+  }
+
+  async function confirmarExclusaoFaseSimples() {
+    if (!fasePendenteExclusaoSimples) return;
+    const faseId = fasePendenteExclusaoSimples.id;
     try {
-      await api.delete(`/fases/${fase.id}`);
+      await api.delete(`/fases/${faseId}`);
       mensagemSucesso('Fase excluída com sucesso!');
-      setFases(fases.filter((f) => f.id !== fase.id));
+      setFases(fases.filter((f) => f.id !== faseId));
+      setFasePendenteExclusaoSimples(null);
     } catch (error) {
       const msg =
         error.response && error.response.data ? String(error.response.data) : '';
-      const temTarefasNaFase = tarefas.some(
-        (t) => Number(t.idFase) === Number(fase.id)
-      );
+      setFasePendenteExclusaoSimples(null);
       if (
-        temTarefasNaFase ||
         msg.toLowerCase().includes('tarefas') ||
         msg.toLowerCase().includes('aviso prévio')
       ) {
-        setFasePendenteExclusao(fase);
+        const faseAlvo = fases.find((f) => Number(f.id) === Number(faseId));
+        if (faseAlvo) setFasePendenteExclusao(faseAlvo);
       } else {
         mensagemErro(msg || 'Erro ao excluir fase.');
       }
@@ -233,6 +248,24 @@ function PerfilProjeto() {
           ? String(error.response.data)
           : 'Erro ao confirmar exclusão da fase.'
       );
+    }
+  }
+
+  async function confirmarExclusaoTarefa() {
+    if (!tarefaPendenteExclusao) return;
+    const tarefaId = tarefaPendenteExclusao.id;
+    try {
+      await api.delete(`/tarefas/${tarefaId}`);
+      mensagemSucesso('Tarefa excluída com sucesso!');
+      setTarefas((prev) => prev.filter((t) => Number(t.id) !== Number(tarefaId)));
+      setTarefaPendenteExclusao(null);
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao excluir tarefa.'
+      );
+      setTarefaPendenteExclusao(null);
     }
   }
 
@@ -341,6 +374,15 @@ function PerfilProjeto() {
             onClick={() => navigate(`/cadastro-etiqueta?idProjeto=${idParam}`)}
           >
             + Nova Etiqueta
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() =>
+              navigate(`/listagem-etiquetas?idProjeto=${idParam}`)
+            }
+          >
+            Etiquetas
           </button>
           <button
             type="button"
@@ -562,7 +604,6 @@ function PerfilProjeto() {
                 <Stack direction="row" spacing={0}>
                   <IconButton
                     size="small"
-                    color="warning"
                     aria-label="editar fase"
                     onClick={() => abrirEdicaoFase(fase)}
                   >
@@ -586,7 +627,6 @@ function PerfilProjeto() {
                   </IconButton>
                   <IconButton
                     size="small"
-                    color="error"
                     aria-label="excluir fase"
                     onClick={() => solicitarExclusaoFase(fase)}
                   >
@@ -704,6 +744,14 @@ function PerfilProjeto() {
                             >
                               Abrir
                             </button>
+
+                            <IconButton
+                              size="small"
+                              aria-label="excluir tarefa"
+                              onClick={() => setTarefaPendenteExclusao(tarefa)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
                           </div>
                         </div>
                       </div>
@@ -763,17 +811,57 @@ function PerfilProjeto() {
       </Dialog>
 
       <Dialog
-        open={Boolean(fasePendenteExclusao)}
-        onClose={() => setFasePendenteExclusao(null)}
+        open={Boolean(fasePendenteExclusaoSimples)}
+        onClose={() => setFasePendenteExclusaoSimples(null)}
       >
-        <DialogTitle>Confirmar Exclusão de Fase</DialogTitle>
+        <DialogTitle>Confirmar exclusão</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            A fase{' '}
+            Tem certeza que deseja excluir a fase{' '}
+            <strong>
+              {fasePendenteExclusaoSimples && fasePendenteExclusaoSimples.nome}
+            </strong>
+            ?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setFasePendenteExclusaoSimples(null)}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmarExclusaoFaseSimples}
+            color="error"
+            variant="contained"
+          >
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(fasePendenteExclusao)}
+        onClose={() => setFasePendenteExclusao(null)}
+        PaperProps={{
+          sx: {
+            border: '2px solid #d32f2f',
+          },
+        }}
+      >
+        <DialogTitle className="text-danger fw-bold">
+          Atenção: Exclusão de Fase com Tarefas
+        </DialogTitle>
+        <DialogContent>
+          <div className="alert alert-danger mb-2" role="alert">
+            <strong>Perda definitiva de dados:</strong> a fase{' '}
             <strong>{fasePendenteExclusao && fasePendenteExclusao.nome}</strong>{' '}
             possui tarefas vinculadas. Ao confirmar, a fase e todas as tarefas
             alocadas nela (incluindo anotações e vínculos) serão excluídas.
-            Deseja continuar?
+          </div>
+          <DialogContentText>
+            Deseja realmente excluir esta fase e todas as suas tarefas?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -789,6 +877,37 @@ function PerfilProjeto() {
             variant="contained"
           >
             Confirmar Exclusão
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(tarefaPendenteExclusao)}
+        onClose={() => setTarefaPendenteExclusao(null)}
+      >
+        <DialogTitle>Confirmar exclusão</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja excluir a tarefa{' '}
+            <strong>
+              {tarefaPendenteExclusao && tarefaPendenteExclusao.titulo}
+            </strong>
+            ?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setTarefaPendenteExclusao(null)}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmarExclusaoTarefa}
+            color="error"
+            variant="contained"
+          >
+            Excluir
           </Button>
         </DialogActions>
       </Dialog>

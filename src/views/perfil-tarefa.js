@@ -1,438 +1,571 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import api from '../config/axios';
+import Stack from '@mui/material/Stack';
+import IconButton from '@mui/material/IconButton';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import Button from '@mui/material/Button';
+
+import Card from '../components/card';
+import FormGroup from '../components/form-group';
 import { mensagemSucesso, mensagemErro } from '../components/toastr';
+import api from '../config/axios';
+import { formatarInstant } from '../utils/formatters';
 
 function PerfilTarefa() {
-  const navigate = useNavigate();
   const { idParam } = useParams();
+  const navigate = useNavigate();
 
   const [tarefa, setTarefa] = useState(null);
-  const [etiquetasProjeto, setEtiquetasProjeto] = useState([]);
-  const [vinculosEtiquetas, setVinculosEtiquetas] = useState([]);
+  const [anotacoes, setAnotacoes] = useState(null);
+  const [textoAnotacao, setTextoAnotacao] = useState('');
+  const [idAnotacaoEditando, setIdAnotacaoEditando] = useState(null);
+
   const [responsaveis, setResponsaveis] = useState([]);
   const [participantesProjeto, setParticipantesProjeto] = useState([]);
-  const [anotacoes, setAnotacoes] = useState([]);
+  const [idFuncionarioProjetoNovo, setIdFuncionarioProjetoNovo] = useState('');
 
-  const [idEtiquetaSelecionada, setIdEtiquetaSelecionada] = useState('');
-  const [idFpSelecionado, setIdFpSelecionado] = useState('');
-  const [textoAnotacao, setTextoAnotacao] = useState('');
-  const [editandoAnotacaoId, setEditandoAnotacaoId] = useState(null);
+  const [etiquetasTarefa, setEtiquetasTarefa] = useState([]);
+  const [etiquetasProjeto, setEtiquetasProjeto] = useState([]);
+  const [idEtiquetaNova, setIdEtiquetaNova] = useState('');
 
-  const carregarTarefa = useCallback(() => {
-    if (!idParam) return;
+  const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null);
 
-    api
-      .get(`/tarefas/${idParam}`)
-      .then((res) => {
-        const t = res.data;
-        setTarefa(t);
+  const carregarDetalhes = useCallback(async () => {
+    try {
+      const [resTarefa, resAnotacoes, resResp, resEtqTarefa] =
+        await Promise.all([
+          api.get(`/tarefas/${idParam}`),
+          api.get(`/anotacoes/tarefa/${idParam}`),
+          api.get(`/responsaveis-tarefa/tarefa/${idParam}`),
+          api.get(`/tarefas-etiquetas/tarefa/${idParam}`),
+        ]);
 
-        if (t.idProjeto) {
-          api
-            .get(`/etiquetas/projeto/${t.idProjeto}`)
-            .then((r) => setEtiquetasProjeto(r.data || []))
-            .catch(() => {});
+      setTarefa(resTarefa.data);
+      setAnotacoes(resAnotacoes.data);
+      setResponsaveis(resResp.data);
+      setEtiquetasTarefa(resEtqTarefa.data);
 
-          api
-            .get(`/funcionarios-projeto/projeto/${t.idProjeto}`)
-            .then((r) => setParticipantesProjeto(r.data || []))
-            .catch(() => {});
-        }
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao carregar tarefa.')
+      if (resTarefa.data && resTarefa.data.idProjeto) {
+        const [resPart, resEtqProj] = await Promise.all([
+          api.get(
+            `/funcionarios-projeto/projeto/${resTarefa.data.idProjeto}`
+          ),
+          api.get(`/etiquetas/projeto/${resTarefa.data.idProjeto}`),
+        ]);
+        setParticipantesProjeto(resPart.data);
+        setEtiquetasProjeto(resEtqProj.data);
+      }
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao carregar detalhes da tarefa.'
       );
-
-    api
-      .get(`/tarefas-etiquetas/tarefa/${idParam}`)
-      .then((res) => setVinculosEtiquetas(res.data || []))
-      .catch(() => {});
-
-    api
-      .get(`/responsaveis-tarefa/tarefa/${idParam}`)
-      .then((res) => setResponsaveis(res.data || []))
-      .catch(() => {});
-
-    api
-      .get(`/anotacoes/tarefa/${idParam}`)
-      .then((res) => setAnotacoes(res.data || []))
-      .catch(() => {});
+      setTarefa(false);
+      setAnotacoes([]);
+    }
   }, [idParam]);
 
   useEffect(() => {
-    carregarTarefa();
-  }, [carregarTarefa]);
+    carregarDetalhes();
+  }, [carregarDetalhes]);
 
-  if (!tarefa) return null;
+  async function excluirTarefa() {
+    if (!tarefa) return;
+    const idProjetoDestino = tarefa.idProjeto;
+    try {
+      await api.delete(`/tarefas/${tarefa.id}`);
+      mensagemSucesso('Tarefa excluída com sucesso!');
+      setConfirmacaoExclusao(null);
+      if (idProjetoDestino) {
+        navigate(`/perfil-projeto/${idProjetoDestino}`);
+      } else {
+        navigate('/listagem-projetos');
+      }
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao excluir tarefa.'
+      );
+      setConfirmacaoExclusao(null);
+    }
+  }
 
-  const vincularEtiqueta = (e) => {
+  async function salvarAnotacao(e) {
     e.preventDefault();
-    if (!idEtiquetaSelecionada) return;
+    if (!textoAnotacao || !textoAnotacao.trim()) {
+      mensagemErro('Digite o texto da anotação.');
+      return;
+    }
 
-    api
-      .post('/tarefas-etiquetas', {
-        idTarefa: Number(idParam),
-        idEtiqueta: Number(idEtiquetaSelecionada),
-      })
-      .then((res) => {
-        setVinculosEtiquetas((prev) => [...prev, res.data]);
-        setIdEtiquetaSelecionada('');
-        mensagemSucesso('Etiqueta vinculada à tarefa!');
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao vincular etiqueta.')
-      );
-  };
-
-  const desvincularEtiqueta = (vinculoId) => {
-    api
-      .delete(`/tarefas-etiquetas/${vinculoId}`)
-      .then(() => {
-        setVinculosEtiquetas((prev) => prev.filter((v) => v.id !== vinculoId));
-        mensagemSucesso('Etiqueta removida da tarefa!');
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao remover etiqueta.')
-      );
-  };
-
-  const adicionarResponsavel = (e) => {
-    e.preventDefault();
-    if (!idFpSelecionado) return;
-
-    api
-      .post('/responsaveis-tarefa', {
-        idTarefa: Number(idParam),
-        idFuncionarioProjeto: Number(idFpSelecionado),
-      })
-      .then((res) => {
-        setResponsaveis((prev) => [...prev, res.data]);
-        setIdFpSelecionado('');
-        mensagemSucesso('Responsável atribuído!');
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao atribuir responsável.')
-      );
-  };
-
-  const removerResponsavel = (respId) => {
-    api
-      .delete(`/responsaveis-tarefa/${respId}`)
-      .then(() => {
-        setResponsaveis((prev) => prev.filter((r) => r.id !== respId));
-        mensagemSucesso('Responsável removido!');
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao remover responsável.')
-      );
-  };
-
-  const salvarAnotacao = (e) => {
-    e.preventDefault();
-
-    const req = editandoAnotacaoId
-      ? api.put(`/anotacoes/${editandoAnotacaoId}`, {
-          texto: textoAnotacao,
-          idTarefa: Number(idParam),
-        })
-      : api.post('/anotacoes', {
-          texto: textoAnotacao,
+    try {
+      if (idAnotacaoEditando == null) {
+        await api.post('/anotacoes', {
+          texto: textoAnotacao.trim(),
           idTarefa: Number(idParam),
         });
-
-    req
-      .then((res) => {
-        if (editandoAnotacaoId) {
-          setAnotacoes((prev) =>
-            prev.map((a) => (a.id === editandoAnotacaoId ? res.data : a))
-          );
-          mensagemSucesso('Anotação atualizada!');
-        } else {
-          setAnotacoes((prev) => [...prev, res.data]);
-          mensagemSucesso('Anotação adicionada!');
-        }
-        setTextoAnotacao('');
-        setEditandoAnotacaoId(null);
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao salvar anotação.')
+        mensagemSucesso('Anotação adicionada com sucesso!');
+      } else {
+        await api.put(`/anotacoes/${idAnotacaoEditando}`, {
+          id: idAnotacaoEditando,
+          texto: textoAnotacao.trim(),
+          idTarefa: Number(idParam),
+        });
+        mensagemSucesso('Anotação atualizada com sucesso!');
+      }
+      setTextoAnotacao('');
+      setIdAnotacaoEditando(null);
+      carregarDetalhes();
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao salvar anotação.'
       );
-  };
+    }
+  }
 
-  const excluirAnotacao = (anotacaoId) => {
+  function excluirAnotacao(id) {
     api
-      .delete(`/anotacoes/${anotacaoId}`)
+      .delete(`/anotacoes/${id}`)
       .then(() => {
-        setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
-        mensagemSucesso('Anotação excluída!');
+        mensagemSucesso('Anotação excluída com sucesso!');
+        setAnotacoes(anotacoes.filter((item) => item.id !== id));
+        setConfirmacaoExclusao(null);
       })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao excluir anotação.')
-      );
-  };
+      .catch((error) => {
+        mensagemErro(
+          error.response && error.response.data
+            ? String(error.response.data)
+            : 'Erro ao excluir anotação.'
+        );
+        setConfirmacaoExclusao(null);
+      });
+  }
 
-  const corPrioridade = tarefa.corPrioridade || '#3B82F6';
+  async function adicionarResponsavel() {
+    if (!idFuncionarioProjetoNovo) return;
+    try {
+      await api.post('/responsaveis-tarefa', {
+        idTarefa: Number(idParam),
+        idFuncionarioProjeto: Number(idFuncionarioProjetoNovo),
+      });
+      mensagemSucesso('Responsável atribuído com sucesso!');
+      setIdFuncionarioProjetoNovo('');
+      carregarDetalhes();
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao atribuir responsável.'
+      );
+    }
+  }
+
+  function removerResponsavel(id) {
+    api
+      .delete(`/responsaveis-tarefa/${id}`)
+      .then(() => {
+        mensagemSucesso('Responsável removido com sucesso!');
+        setResponsaveis(responsaveis.filter((r) => r.id !== id));
+        setConfirmacaoExclusao(null);
+      })
+      .catch((error) => {
+        mensagemErro(
+          error.response && error.response.data
+            ? String(error.response.data)
+            : 'Erro ao remover responsável.'
+        );
+        setConfirmacaoExclusao(null);
+      });
+  }
+
+  async function adicionarEtiqueta() {
+    if (!idEtiquetaNova) return;
+    try {
+      await api.post('/tarefas-etiquetas', {
+        idTarefa: Number(idParam),
+        idEtiqueta: Number(idEtiquetaNova),
+      });
+      mensagemSucesso('Etiqueta vinculada com sucesso!');
+      setIdEtiquetaNova('');
+      carregarDetalhes();
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao vincular etiqueta.'
+      );
+    }
+  }
+
+  function removerEtiqueta(id) {
+    api
+      .delete(`/tarefas-etiquetas/${id}`)
+      .then(() => {
+        mensagemSucesso('Etiqueta desvinculada com sucesso!');
+        setEtiquetasTarefa(etiquetasTarefa.filter((te) => te.id !== id));
+        setConfirmacaoExclusao(null);
+      })
+      .catch((error) => {
+        mensagemErro(
+          error.response && error.response.data
+            ? String(error.response.data)
+            : 'Erro ao desvincular etiqueta.'
+        );
+        setConfirmacaoExclusao(null);
+      });
+  }
+
+  function executarConfirmacaoExclusao() {
+    if (!confirmacaoExclusao) return;
+    if (confirmacaoExclusao.tipo === 'tarefa') {
+      excluirTarefa();
+    } else if (confirmacaoExclusao.tipo === 'anotacao') {
+      excluirAnotacao(confirmacaoExclusao.item.id);
+    } else if (confirmacaoExclusao.tipo === 'responsavel') {
+      removerResponsavel(confirmacaoExclusao.item.id);
+    } else if (confirmacaoExclusao.tipo === 'etiqueta') {
+      removerEtiqueta(confirmacaoExclusao.item.id);
+    }
+  }
+
+  if (!tarefa || !anotacoes) return null;
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3>{tarefa.titulo}</h3>
-        <div className="d-flex gap-2">
+    <Card
+      title={tarefa.titulo ? `Tarefa — ${tarefa.titulo}` : 'Detalhes da Tarefa'}
+    >
+      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <Stack direction="row" spacing={1}>
           <button
             type="button"
-            className="btn btn-warning"
+            className="btn btn-warning text-white fw-semibold"
             onClick={() => navigate(`/cadastro-tarefa/${tarefa.id}`)}
           >
             Editar Tarefa
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-danger fw-semibold"
             onClick={() =>
-              navigate(
-                tarefa.idProjeto
-                  ? `/perfil-projeto/${tarefa.idProjeto}`
-                  : '/listagem-projetos'
-              )
+              setConfirmacaoExclusao({
+                tipo: 'tarefa',
+                item: tarefa,
+                mensagem: (
+                  <>
+                    Tem certeza que deseja excluir a tarefa{' '}
+                    <strong>{tarefa.titulo}</strong>?
+                  </>
+                ),
+              })
             }
           >
-            Voltar ao Quadro
+            Excluir Tarefa
+          </button>
+        </Stack>
+        <button
+          type="button"
+          className="btn btn-outline-secondary btn-sm"
+          onClick={() =>
+            tarefa.idProjeto
+              ? navigate(`/perfil-projeto/${tarefa.idProjeto}`)
+              : navigate('/listagem-projetos')
+          }
+        >
+          ← Voltar ao Quadro
+        </button>
+      </div>
+
+      <div className="mb-3">
+        <p>
+          <strong>Projeto:</strong> {tarefa.tituloProjeto || '—'}
+        </p>
+        <p>
+          <strong>Fase:</strong> {tarefa.nomeFase || '—'}
+        </p>
+        <p>
+          <strong>Prioridade:</strong>{' '}
+          {tarefa.nomePrioridade ? (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: tarefa.corPrioridade || '#3B82F6',
+                color: '#fff',
+              }}
+            >
+              {tarefa.nomePrioridade}
+            </span>
+          ) : (
+            'Sem prioridade'
+          )}
+        </p>
+        <p>
+          <strong>Data de Criação:</strong> {formatarInstant(tarefa.dataCriacao)}
+        </p>
+        <p>
+          <strong>Data Limite:</strong> {formatarInstant(tarefa.dataLimite)}
+        </p>
+        <p>
+          <strong>Descrição:</strong> {tarefa.descricao || 'Sem descrição.'}
+        </p>
+      </div>
+
+      <hr />
+      <h5>Responsáveis pela Tarefa</h5>
+      <div className="row g-2 mb-2">
+        <div className="col-md-8">
+          <select
+            aria-label="selecionar responsável"
+            className="form-select"
+            value={idFuncionarioProjetoNovo}
+            onChange={(e) => setIdFuncionarioProjetoNovo(e.target.value)}
+          >
+            <option value="">Selecione um participante do projeto</option>
+            {participantesProjeto.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nomeFuncionario}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-4">
+          <button
+            type="button"
+            className="btn btn-outline-primary w-100"
+            onClick={adicionarResponsavel}
+          >
+            Atribuir Responsável
           </button>
         </div>
       </div>
 
-      {/* Detalhes da Tarefa */}
-      <div className="card mb-4">
-        <div className="card-body">
-          <div className="mb-2 d-flex flex-wrap align-items-center gap-2">
-            <span>
-              <strong>Projeto:</strong> {tarefa.tituloProjeto || '-'}
-            </span>
-            <span>|</span>
-            <span>
-              <strong>Fase:</strong> {tarefa.nomeFase || '-'}
-            </span>
-            <span>|</span>
-            <span>
-              <strong>Prioridade:</strong>{' '}
-              {tarefa.nomePrioridade ? (
-                <span
-                  className="badge"
-                  style={{
-                    backgroundColor: corPrioridade,
-                    color: '#FFFFFF',
-                  }}
-                >
-                  {tarefa.nomePrioridade}
-                </span>
-              ) : (
-                'Nenhuma'
-              )}
-            </span>
-          </div>
+      <ul className="list-group mb-3">
+        {responsaveis.map((r) => (
+          <li
+            key={r.id}
+            className="list-group-item d-flex justify-content-between align-items-center"
+          >
+            <span>{r.nomeFuncionario}</span>
+            <IconButton
+              size="small"
+              aria-label="remover responsável"
+              onClick={() =>
+                setConfirmacaoExclusao({
+                  tipo: 'responsavel',
+                  item: r,
+                  mensagem: (
+                    <>
+                      Tem certeza que deseja remover o responsável{' '}
+                      <strong>{r.nomeFuncionario}</strong> desta tarefa?
+                    </>
+                  ),
+                })
+              }
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </li>
+        ))}
+      </ul>
 
-          {tarefa.descricao && <p className="mb-2">{tarefa.descricao}</p>}
+      <hr />
+      <h5>Etiquetas da Tarefa</h5>
+      <div className="row g-2 mb-2">
+        <div className="col-md-8">
+          <select
+            aria-label="selecionar etiqueta"
+            className="form-select"
+            value={idEtiquetaNova}
+            onChange={(e) => setIdEtiquetaNova(e.target.value)}
+          >
+            <option value="">Selecione uma etiqueta do projeto</option>
+            {etiquetasProjeto.map((et) => (
+              <option key={et.id} value={et.id}>
+                {et.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-md-4">
+          <button
+            type="button"
+            className="btn btn-outline-primary w-100"
+            onClick={adicionarEtiqueta}
+          >
+            Vincular Etiqueta
+          </button>
+        </div>
+      </div>
 
-          {tarefa.dataLimite && (
-            <small className="text-muted">
-              Data limite: {new Date(tarefa.dataLimite).toLocaleString('pt-BR')}
-            </small>
+      <ul className="list-group mb-3">
+        {etiquetasTarefa.map((te) => {
+          const etqInfo = etiquetasProjeto.find(
+            (e) => Number(e.id) === Number(te.idEtiqueta)
+          );
+          return (
+            <li
+              key={te.id}
+              className="list-group-item d-flex justify-content-between align-items-center"
+            >
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: (etqInfo && etqInfo.cor) || '#3B82F6',
+                  color: '#fff',
+                }}
+              >
+                {te.nomeEtiqueta}
+              </span>
+              <IconButton
+                size="small"
+                aria-label="desvincular etiqueta"
+                onClick={() =>
+                  setConfirmacaoExclusao({
+                    tipo: 'etiqueta',
+                    item: te,
+                    mensagem: (
+                      <>
+                        Tem certeza que deseja desvincular a etiqueta{' '}
+                        <strong>{te.nomeEtiqueta}</strong> desta tarefa?
+                      </>
+                    ),
+                  })
+                }
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </li>
+          );
+        })}
+      </ul>
+
+      <hr />
+      <h5>Anotações</h5>
+      <form onSubmit={salvarAnotacao} className="mb-3">
+        <FormGroup
+          label={
+            idAnotacaoEditando == null
+              ? 'Nova Anotação *'
+              : 'Editar Anotação *'
+          }
+          htmlFor="inputTextoAnotacao"
+        >
+          <textarea
+            id="inputTextoAnotacao"
+            maxLength={500}
+            rows={2}
+            className="form-control"
+            value={textoAnotacao}
+            onChange={(e) => setTextoAnotacao(e.target.value)}
+          />
+        </FormGroup>
+        <Stack spacing={1} direction="row" className="mt-2">
+          <button type="submit" className="btn btn-success">
+            {idAnotacaoEditando == null
+              ? 'Adicionar Anotação'
+              : 'Atualizar Anotação'}
+          </button>
+          {idAnotacaoEditando != null && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setIdAnotacaoEditando(null);
+                setTextoAnotacao('');
+              }}
+            >
+              Cancelar Edição
+            </button>
           )}
-        </div>
-      </div>
+        </Stack>
+      </form>
 
-      {/* Etiquetas Vinculadas */}
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Etiquetas</strong>
-        </div>
-        <div className="card-body">
-          <div className="mb-3 d-flex flex-wrap gap-2">
-            {vinculosEtiquetas.length === 0 ? (
-              <span className="text-muted">Nenhuma etiqueta vinculada.</span>
-            ) : (
-              vinculosEtiquetas.map((ve) => {
-                const etObj = etiquetasProjeto.find(
-                  (e) => e.id === ve.idEtiqueta
-                );
-                return (
-                  <span
-                    key={ve.id}
-                    className="badge d-inline-flex align-items-center gap-2"
-                    style={{
-                      backgroundColor: etObj?.cor || '#3B82F6',
-                      color: '#FFFFFF',
-                      padding: '6px 10px',
-                    }}
-                  >
-                    <span>{ve.nomeEtiqueta}</span>
-                    <button
-                      type="button"
-                      className="btn-close btn-close-white"
-                      style={{ width: '0.55em', height: '0.55em' }}
-                      onClick={() => desvincularEtiqueta(ve.id)}
-                      title="Remover etiqueta"
-                    />
-                  </span>
-                );
-              })
-            )}
-          </div>
-
-          <form onSubmit={vincularEtiqueta} className="d-flex gap-2">
-            <select
-              className="form-select"
-              style={{ maxWidth: '300px' }}
-              value={idEtiquetaSelecionada}
-              onChange={(e) => setIdEtiquetaSelecionada(e.target.value)}
-            >
-              <option value="">Selecionar etiqueta do projeto...</option>
-              {etiquetasProjeto.map((et) => (
-                <option key={et.id} value={et.id}>
-                  {et.nome}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="btn btn-primary">
-              Vincular
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Responsáveis */}
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Responsáveis</strong>
-        </div>
-        <div className="card-body">
-          <ul className="list-group mb-3">
-            {responsaveis.length === 0 ? (
-              <li className="list-group-item text-muted">
-                Nenhum responsável atribuído.
-              </li>
-            ) : (
-              responsaveis.map((r) => (
-                <li
-                  key={r.id}
-                  className="list-group-item d-flex justify-content-between align-items-center"
-                >
-                  <span>{r.nomeFuncionario}</span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => removerResponsavel(r.id)}
-                  >
-                    Remover
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <form onSubmit={adicionarResponsavel} className="d-flex gap-2">
-            <select
-              className="form-select"
-              style={{ maxWidth: '300px' }}
-              value={idFpSelecionado}
-              onChange={(e) => setIdFpSelecionado(e.target.value)}
-            >
-              <option value="">Selecionar participante do projeto...</option>
-              {participantesProjeto.map((fp) => (
-                <option key={fp.id} value={fp.id}>
-                  {fp.nomeFuncionario}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="btn btn-primary">
-              Atribuir
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Anotações */}
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Anotações</strong>
-        </div>
-        <div className="card-body">
-          <form onSubmit={salvarAnotacao} className="mb-3">
-            <div className="mb-2">
-              <textarea
-                className="form-control"
-                rows={2}
-                maxLength={500}
-                value={textoAnotacao}
-                onChange={(e) => setTextoAnotacao(e.target.value)}
-                placeholder="Escreva uma anotação sobre a tarefa..."
-              />
-            </div>
-            <div className="d-flex gap-2">
-              <button type="submit" className="btn btn-success btn-sm">
-                {editandoAnotacaoId ? 'Atualizar Anotação' : 'Adicionar Anotação'}
-              </button>
-              {editandoAnotacaoId && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setEditandoAnotacaoId(null);
-                    setTextoAnotacao('');
-                  }}
-                >
-                  Cancelar Edição
-                </button>
-              )}
-            </div>
-          </form>
-
-          <ul className="list-group">
-            {anotacoes.length === 0 ? (
-              <li className="list-group-item text-muted">
-                Nenhuma anotação registrada.
-              </li>
-            ) : (
-              anotacoes.map((a) => (
-                <li
-                  key={a.id}
-                  className="list-group-item d-flex justify-content-between align-items-start gap-2"
-                >
-                  <div>
-                    <div>{a.texto}</div>
-                    {a.dataCriacao && (
-                      <small className="text-muted">
-                        {new Date(a.dataCriacao).toLocaleString('pt-BR')}
-                      </small>
-                    )}
-                  </div>
-                  <div className="d-flex gap-1">
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-warning"
+      <div className="table-responsive">
+        <table className="table table-hover align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>Anotação</th>
+              <th>Data</th>
+              <th style={{ width: '110px' }}>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {anotacoes.map((nota) => (
+              <tr key={nota.id}>
+                <td>{nota.texto}</td>
+                <td>{formatarInstant(nota.dataCriacao)}</td>
+                <td>
+                  <Stack spacing={0.5} direction="row">
+                    <IconButton
+                      size="small"
+                      aria-label="editar anotação"
                       onClick={() => {
-                        setEditandoAnotacaoId(a.id);
-                        setTextoAnotacao(a.texto);
+                        setIdAnotacaoEditando(nota.id);
+                        setTextoAnotacao(nota.texto || '');
                       }}
                     >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-danger"
-                      onClick={() => excluirAnotacao(a.id)}
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      aria-label="excluir anotação"
+                      onClick={() =>
+                        setConfirmacaoExclusao({
+                          tipo: 'anotacao',
+                          item: nota,
+                          mensagem: (
+                            <>
+                              Tem certeza que deseja excluir esta anotação?
+                            </>
+                          ),
+                        })
+                      }
                     >
-                      Excluir
-                    </button>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+
+      <Dialog
+        open={Boolean(confirmacaoExclusao)}
+        onClose={() => setConfirmacaoExclusao(null)}
+      >
+        <DialogTitle>Confirmar exclusão</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {confirmacaoExclusao && confirmacaoExclusao.mensagem}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConfirmacaoExclusao(null)}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={executarConfirmacaoExclusao}
+            color="error"
+            variant="contained"
+          >
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Card>
   );
 }
 

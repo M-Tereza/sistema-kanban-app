@@ -91,7 +91,6 @@ function ListagemAreasProjeto() {
                     <Stack spacing={0.5} direction="row">
                       <IconButton
                         size="small"
-                        color="warning"
                         aria-label="editar"
                         onClick={() =>
                           navigate(`/cadastro-area-projeto/${area.id}`)
@@ -101,7 +100,6 @@ function ListagemAreasProjeto() {
                       </IconButton>
                       <IconButton
                         size="small"
-                        color="error"
                         aria-label="excluir"
                         onClick={() => setAreaSelecionada(area)}
                       >

@@ -1,257 +1,247 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import api from '../config/axios';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import Stack from '@mui/material/Stack';
+
+import Card from '../components/card';
+import FormGroup from '../components/form-group';
 import { mensagemSucesso, mensagemErro } from '../components/toastr';
+import api from '../config/axios';
 
 function CadastroTarefa() {
-  const navigate = useNavigate();
   const { idParam } = useParams();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const endpoint = '/tarefas';
 
+  const idProjetoInicial =
+    searchParams.get('idProjeto') ||
+    (location.state && location.state.idProjeto
+      ? String(location.state.idProjeto)
+      : '');
+
+  const [id, setId] = useState('');
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [dataLimite, setDataLimite] = useState('');
-  const [idProjeto, setIdProjeto] = useState(searchParams.get('idProjeto') || '');
-  const [idFase, setIdFase] = useState(searchParams.get('idFase') || '');
+  const [dataCriacao, setDataCriacao] = useState('');
+  const [dataLimiteInput, setDataLimiteInput] = useState('');
+  const [idProjeto, setIdProjeto] = useState(idProjetoInicial);
+  const [idFase, setIdFase] = useState('');
   const [idPrioridade, setIdPrioridade] = useState('');
 
-  const [projetos, setProjetos] = useState([]);
-  const [fases, setFases] = useState([]);
-  const [prioridades, setPrioridades] = useState([]);
+  const [dadosFases, setDadosFases] = useState([]);
+  const [dadosPrioridades, setDadosPrioridades] = useState(null);
+  const [carregado, setCarregado] = useState(false);
 
   useEffect(() => {
     api
-      .get('/projetos')
-      .then((res) => setProjetos(res.data || []))
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao carregar projetos.')
-      );
-
-    api
       .get('/prioridades')
-      .then((res) => setPrioridades(res.data || []))
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao carregar prioridades.')
-      );
+      .then((res) => setDadosPrioridades(res.data))
+      .catch(() => setDadosPrioridades([]));
   }, []);
 
   useEffect(() => {
     if (!idProjeto) {
-      setFases([]);
+      setDadosFases([]);
       return;
     }
     api
       .get(`/fases/projeto/${idProjeto}`)
-      .then((res) => setFases(res.data || []))
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao carregar fases do projeto.')
-      );
+      .then((res) => setDadosFases(res.data))
+      .catch(() => setDadosFases([]));
   }, [idProjeto]);
 
   useEffect(() => {
-    if (!idParam) return;
-    api
-      .get(`/tarefas/${idParam}`)
-      .then((res) => {
-        const t = res.data;
-        setTitulo(t.titulo || '');
-        setDescricao(t.descricao || '');
-        setIdProjeto(t.idProjeto ? String(t.idProjeto) : '');
-        setIdFase(t.idFase ? String(t.idFase) : '');
-        setIdPrioridade(t.idPrioridade ? String(t.idPrioridade) : '');
-        if (t.dataLimite) {
-          setDataLimite(t.dataLimite.slice(0, 16));
+    async function buscar() {
+      if (idParam == null) {
+        setCarregado(true);
+        return;
+      }
+      try {
+        const response = await api.get(`${endpoint}/${idParam}`);
+        const tarefa = response.data;
+        setId(tarefa.id);
+        setTitulo(tarefa.titulo || '');
+        setDescricao(tarefa.descricao || '');
+        setDataCriacao(tarefa.dataCriacao || '');
+        setIdFase(tarefa.idFase != null ? String(tarefa.idFase) : '');
+        setIdPrioridade(
+          tarefa.idPrioridade != null ? String(tarefa.idPrioridade) : ''
+        );
+        if (tarefa.idProjeto != null) {
+          setIdProjeto(String(tarefa.idProjeto));
         }
-      })
-      .catch((err) =>
-        mensagemErro(err.response?.data || 'Erro ao carregar tarefa.')
-      );
+        if (tarefa.dataLimite) {
+          const dt = new Date(tarefa.dataLimite);
+          if (!Number.isNaN(dt.getTime())) {
+            setDataLimiteInput(dt.toISOString().slice(0, 16));
+          }
+        }
+      } catch (error) {
+        mensagemErro(
+          error.response && error.response.data
+            ? String(error.response.data)
+            : 'Erro ao carregar tarefa.'
+        );
+      } finally {
+        setCarregado(true);
+      }
+    }
+
+    setCarregado(false);
+    buscar();
   }, [idParam]);
 
-  const salvar = (e) => {
-    e.preventDefault();
+  async function salvar() {
+    if (!titulo || !titulo.trim()) {
+      mensagemErro('O título da tarefa é obrigatório.');
+      return;
+    }
+
+    if (!idFase) {
+      mensagemErro('Selecione uma fase para a tarefa.');
+      return;
+    }
+
+    const dataLimiteIso = dataLimiteInput
+      ? new Date(dataLimiteInput).toISOString()
+      : null;
 
     const payload = {
-      titulo,
-      descricao: descricao.trim() ? descricao : null,
-      dataLimite: dataLimite ? new Date(dataLimite).toISOString() : null,
-      idFase: idFase ? Number(idFase) : null,
+      id: id || undefined,
+      titulo: titulo.trim(),
+      descricao: descricao && descricao.trim() ? descricao.trim() : null,
+      dataCriacao: idParam != null ? dataCriacao || undefined : undefined,
+      dataLimite: dataLimiteIso,
+      idProjeto: idProjeto ? Number(idProjeto) : null,
+      idFase: Number(idFase),
       idPrioridade: idPrioridade ? Number(idPrioridade) : null,
     };
 
-    const req = idParam
-      ? api.put(`/tarefas/${idParam}`, payload)
-      : api.post('/tarefas', payload);
-
-    req
-      .then((res) => {
-        mensagemSucesso(
-          idParam
-            ? 'Tarefa atualizada com sucesso!'
-            : 'Tarefa cadastrada com sucesso!'
-        );
-        const tarefaId = res.data?.id || idParam;
-        if (tarefaId) {
-          navigate(`/perfil-tarefa/${tarefaId}`);
-        } else if (idProjeto) {
-          navigate(`/perfil-projeto/${idProjeto}`);
-        } else {
-          navigate('/listagem-projetos');
+    try {
+      let projetoDestino = idProjeto;
+      if (idParam == null) {
+        const res = await api.post(endpoint, payload);
+        mensagemSucesso('Tarefa cadastrada com sucesso!');
+        if (res.data && res.data.idProjeto) {
+          projetoDestino = String(res.data.idProjeto);
         }
-      })
-      .catch((err) => {
-        mensagemErro(err.response?.data || 'Erro ao salvar tarefa.');
-      });
-  };
+      } else {
+        const res = await api.put(`${endpoint}/${idParam}`, payload);
+        mensagemSucesso('Tarefa atualizada com sucesso!');
+        if (res.data && res.data.idProjeto) {
+          projetoDestino = String(res.data.idProjeto);
+        }
+      }
 
-  const prioridadeSelecionada = prioridades.find(
-    (p) => String(p.id) === String(idPrioridade)
-  );
+      if (projetoDestino) {
+        navigate(`/perfil-projeto/${projetoDestino}`);
+      } else {
+        navigate('/listagem-projetos');
+      }
+    } catch (error) {
+      mensagemErro(
+        error.response && error.response.data
+          ? String(error.response.data)
+          : 'Erro ao salvar tarefa.'
+      );
+    }
+  }
+
+  function cancelar() {
+    if (idProjeto) {
+      navigate(`/perfil-projeto/${idProjeto}`);
+    } else {
+      navigate('/listagem-projetos');
+    }
+  }
+
+  if (!carregado || !dadosPrioridades) return null;
 
   return (
-    <div className="container mt-4">
-      <div className="card">
-        <div className="card-header">
-          <h4>{idParam ? 'Editar Tarefa' : 'Cadastro de Tarefa'}</h4>
-        </div>
-        <div className="card-body">
-          <form onSubmit={salvar}>
-            <div className="mb-3">
-              <label htmlFor="selectProjetoTarefa" className="form-label">
-                Projeto *
-              </label>
-              <select
-                id="selectProjetoTarefa"
-                className="form-select"
-                value={idProjeto}
-                onChange={(e) => {
-                  setIdProjeto(e.target.value);
-                  setIdFase('');
-                }}
-              >
-                <option value="">Selecione um projeto...</option>
-                {projetos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.titulo}
-                  </option>
-                ))}
-              </select>
-            </div>
+    <Card
+      title={idParam == null ? 'Nova Tarefa' : 'Editar Tarefa'}
+    >
+      <FormGroup label="Título *" htmlFor="inputTituloTarefa">
+        <input
+          type="text"
+          id="inputTituloTarefa"
+          maxLength={120}
+          className="form-control"
+          placeholder="Ex.: Implementar tela de login"
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+        />
+      </FormGroup>
 
-            <div className="mb-3">
-              <label htmlFor="selectFaseTarefa" className="form-label">
-                Fase *
-              </label>
-              <select
-                id="selectFaseTarefa"
-                className="form-select"
-                value={idFase}
-                onChange={(e) => setIdFase(e.target.value)}
-                disabled={!idProjeto}
-              >
-                <option value="">Selecione uma fase...</option>
-                {fases.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <FormGroup label="Fase *" htmlFor="selectFaseTarefa">
+        <select
+          id="selectFaseTarefa"
+          className="form-select"
+          value={idFase}
+          onChange={(e) => setIdFase(e.target.value)}
+        >
+          <option value="">Selecione uma fase</option>
+          {dadosFases.map((fase) => (
+            <option key={fase.id} value={fase.id}>
+              {fase.nome}
+            </option>
+          ))}
+        </select>
+      </FormGroup>
 
-            <div className="mb-3">
-              <label htmlFor="inputTituloTarefa" className="form-label">
-                Título *
-              </label>
-              <input
-                id="inputTituloTarefa"
-                type="text"
-                className="form-control"
-                maxLength={120}
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ex.: Implementar autenticação e rotas"
-              />
-            </div>
+      <FormGroup label="Prioridade" htmlFor="selectPrioridadeTarefa">
+        <select
+          id="selectPrioridadeTarefa"
+          className="form-select"
+          value={idPrioridade}
+          onChange={(e) => setIdPrioridade(e.target.value)}
+        >
+          <option value="">Sem prioridade</option>
+          {dadosPrioridades.map((pr) => (
+            <option key={pr.id} value={pr.id}>
+              {pr.nome}
+            </option>
+          ))}
+        </select>
+      </FormGroup>
 
-            <div className="mb-3">
-              <label htmlFor="inputDescricaoTarefa" className="form-label">
-                Descrição
-              </label>
-              <textarea
-                id="inputDescricaoTarefa"
-                className="form-control"
-                rows={3}
-                maxLength={500}
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Detalhes da tarefa (opcional)"
-              />
-            </div>
+      <FormGroup label="Data Limite" htmlFor="inputDataLimiteTarefa">
+        <input
+          type="datetime-local"
+          id="inputDataLimiteTarefa"
+          className="form-control"
+          value={dataLimiteInput}
+          onChange={(e) => setDataLimiteInput(e.target.value)}
+        />
+      </FormGroup>
 
-            <div className="row g-3 mb-3">
-              <div className="col-md-6">
-                <label htmlFor="selectPrioridadeTarefa" className="form-label">
-                  Prioridade
-                </label>
-                <div className="d-flex align-items-center gap-2">
-                  <select
-                    id="selectPrioridadeTarefa"
-                    className="form-select"
-                    value={idPrioridade}
-                    onChange={(e) => setIdPrioridade(e.target.value)}
-                  >
-                    <option value="">Sem prioridade</option>
-                    {prioridades.map((prio) => (
-                      <option key={prio.id} value={prio.id}>
-                        {prio.nome} ({prio.cor || '#3B82F6'})
-                      </option>
-                    ))}
-                  </select>
-                  {prioridadeSelecionada && (
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: prioridadeSelecionada.cor || '#3B82F6',
-                        color: '#FFFFFF',
-                        padding: '8px 10px',
-                      }}
-                    >
-                      {prioridadeSelecionada.nome}
-                    </span>
-                  )}
-                </div>
-              </div>
+      <FormGroup label="Descrição" htmlFor="inputDescricaoTarefa">
+        <textarea
+          id="inputDescricaoTarefa"
+          maxLength={500}
+          rows={3}
+          className="form-control"
+          placeholder="Detalhes ou critérios de aceite da tarefa..."
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
+        />
+      </FormGroup>
 
-              <div className="col-md-6">
-                <label htmlFor="inputDataLimiteTarefa" className="form-label">
-                  Data Limite
-                </label>
-                <input
-                  id="inputDataLimiteTarefa"
-                  type="datetime-local"
-                  className="form-control"
-                  value={dataLimite}
-                  onChange={(e) => setDataLimite(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="d-flex gap-2">
-              <button type="submit" className="btn btn-success">
-                Salvar
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => navigate(-1)}
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+      <br />
+      <Stack spacing={1} padding={1} direction="row">
+        <button type="button" className="btn btn-success" onClick={salvar}>
+          Salvar
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={cancelar}
+        >
+          Cancelar
+        </button>
+      </Stack>
+    </Card>
   );
 }
 

@@ -91,7 +91,6 @@ function ListagemCargos() {
                     <Stack spacing={0.5} direction="row">
                       <IconButton
                         size="small"
-                        color="warning"
                         aria-label="editar"
                         onClick={() => navigate(`/cadastro-cargo/${cargo.id}`)}
                       >
@@ -99,7 +98,6 @@ function ListagemCargos() {
                       </IconButton>
                       <IconButton
                         size="small"
-                        color="error"
                         aria-label="excluir"
                         onClick={() => setCargoSelecionado(cargo)}
                       >
